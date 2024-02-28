@@ -94,7 +94,20 @@ class FocalLoss(nn.Module):
                     cls_loss = focal_weight * bce
                     classification_losses.append(cls_loss.sum())
                     regression_losses.append(torch.tensor(0).float().cuda())
+                elif torch.backends.mps.is_available():
+                    mps_device = torch.device("mps")
+                    alpha_factor = torch.ones(classification.shape).to(mps_device) * alpha
 
+                    alpha_factor = 1. - alpha_factor
+                    focal_weight = classification
+                    focal_weight = alpha_factor * torch.pow(focal_weight, gamma)
+
+                    bce = -(torch.log(1.0 - classification))
+
+                    # cls_loss = focal_weight * torch.pow(bce, gamma)
+                    cls_loss = focal_weight * bce
+                    classification_losses.append(cls_loss.sum())
+                    regression_losses.append(torch.tensor(0).float().to(mps_device))
                 else:
                     alpha_factor = torch.ones(classification.shape) * alpha
 
@@ -120,6 +133,9 @@ class FocalLoss(nn.Module):
 
             if torch.cuda.is_available():
                 targets = targets.cuda()
+            elif torch.backends.mps.is_available():
+                mps_device = torch.device("mps")
+                targets = targets.to(mps_device)
 
             # all rows of IOU_max
             targets[torch.lt(IoU_max, 0.4), :] = 0
@@ -138,6 +154,9 @@ class FocalLoss(nn.Module):
 
             if torch.cuda.is_available():
                 alpha_factor = torch.ones(targets.shape).cuda() * alpha
+            elif torch.backends.mps.is_available():
+                mps_device = torch.device("mps")
+                alpha_factor = torch.ones(targets.shape).to(mps_device) * alpha
             else:
                 alpha_factor = torch.ones(targets.shape) * alpha
 
@@ -160,6 +179,9 @@ class FocalLoss(nn.Module):
 
             if torch.cuda.is_available():
                 cls_loss = torch.where(torch.ne(targets, -1.0), cls_loss, torch.zeros(cls_loss.shape).cuda())
+            elif torch.backends.mps.is_available():
+                cls_loss = torch.where(torch.ne(targets, -1.0), cls_loss,
+                                       torch.zeros(cls_loss.shape).to(torch.device("mps")))
             else:
                 cls_loss = torch.where(torch.ne(targets, -1.0), cls_loss, torch.zeros(cls_loss.shape))
 
@@ -194,6 +216,8 @@ class FocalLoss(nn.Module):
 
                 if torch.cuda.is_available():
                     targets = targets/torch.Tensor([[0.1, 0.1, 0.2, 0.2]]).cuda()
+                elif torch.backends.mps.is_available():
+                    targets = targets/torch.Tensor([[0.1, 0.1, 0.2, 0.2]]).to(torch.device("mps"))
                 else:
                     targets = targets/torch.Tensor([[0.1, 0.1, 0.2, 0.2]])
 
@@ -210,6 +234,8 @@ class FocalLoss(nn.Module):
             else:
                 if torch.cuda.is_available():
                     regression_losses.append(torch.tensor(0).float().cuda())
+                elif torch.backends.mps.is_available():
+                    regression_losses.append(torch.tensor(0).float().to(torch.device("mps")))
                 else:
                     regression_losses.append(torch.tensor(0).float())
 

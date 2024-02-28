@@ -3,14 +3,15 @@ import json
 import torch
 from tqdm import tqdm
 
+
 class Evaluation:
     def __init__(self):
         super(Evaluation, self).__init__()
 
     def evaluate(self, dataset, model, threshold=0.05):
-    
+
         model.eval()
-        
+
         with torch.no_grad():
 
             # start collecting results
@@ -24,11 +25,14 @@ class Evaluation:
                 # run network
                 if torch.cuda.is_available():
                     scores, labels, boxes = model(data['img'].permute(2, 0, 1).cuda().float().unsqueeze(dim=0))
+                elif torch.backends.mps.is_available():
+                    mps_device = torch.device("mps")
+                    scores, labels, boxes = model(data['img'].permute(2, 0, 1).to(mps_device).float().unsqueeze(dim=0))
                 else:
                     scores, labels, boxes = model(data['img'].permute(2, 0, 1).float().unsqueeze(dim=0))
                 scores = scores.cpu()
                 labels = labels.cpu()
-                boxes  = boxes.cpu()
+                boxes = boxes.cpu()
 
                 # correct boxes for image scale
                 boxes /= scale
@@ -51,10 +55,10 @@ class Evaluation:
 
                         # append detection for each positively labeled class
                         image_result = {
-                            'image_id'    : dataset.image_ids[index],
-                            'category_id' : dataset.label_to_coco_label(label),
-                            'score'       : float(score),
-                            'bbox'        : box.tolist(),
+                            'image_id': dataset.image_ids[index],
+                            'category_id': dataset.label_to_coco_label(label),
+                            'score': float(score),
+                            'bbox': box.tolist(),
                         }
 
                         # append detection to results

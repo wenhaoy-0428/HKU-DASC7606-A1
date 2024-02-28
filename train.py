@@ -51,6 +51,9 @@ def main(args=None):
     if use_gpu:
         if torch.cuda.is_available():
             retinanet = retinanet.cuda()
+        if torch.backends.mps.is_available():
+            mps_device = torch.device("mps")
+            retinanet = retinanet.to(mps_device)
 
     retinanet.training = True
     optimizer = optim.Adam(retinanet.parameters(), lr=1e-4)
@@ -80,6 +83,10 @@ def main(args=None):
 
             if torch.cuda.is_available():
                 classification_loss, regression_loss = retinanet([data['img'].cuda().float(), data['annot'].cuda()])
+            elif torch.backends.mps.is_available():
+                mps_device = torch.device("mps")
+                classification_loss, regression_loss = retinanet(
+                    [data['img'].to(mps_device).float(), data['annot'].to(mps_device)])
             else:
                 classification_loss, regression_loss = retinanet([data['img'].float(), data['annot']])
 

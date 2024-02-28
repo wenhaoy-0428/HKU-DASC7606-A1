@@ -171,6 +171,11 @@ class ResNet(nn.Module):
             finalScores = finalScores.cuda()
             finalAnchorBoxesIndexes = finalAnchorBoxesIndexes.cuda()
             finalAnchorBoxesCoordinates = finalAnchorBoxesCoordinates.cuda()
+        elif torch.backends.mps.is_available():
+            mps_device = torch.device("mps")
+            finalScores = finalScores.to(mps_device)
+            finalAnchorBoxesIndexes = finalAnchorBoxesIndexes.to(mps_device)
+            finalAnchorBoxesCoordinates = finalAnchorBoxesCoordinates.to(mps_device)
 
         for i in range(classification.shape[2]):
             scores = torch.squeeze(classification[:, :, i])

@@ -12,12 +12,11 @@ from retinanet import model
 from retinanet.dataloader import CocoDataset, collater, Resizer, \
     AspectRatioBasedSampler, Augmenter, Normalizer
 from retinanet.eval import Evaluation
-    
+
 from torch.utils.data import DataLoader
 
 from pycocotools.cocoeval import COCOeval
 import json
-
 
 
 def main(args=None):
@@ -37,7 +36,7 @@ def main(args=None):
         raise ValueError('Must provide --coco_path when training on COCO.')
 
     dataset_test = CocoDataset(parser.coco_path, set_name=parser.set_name,
-                                transform=transforms.Compose([Normalizer(), Resizer()]))
+                               transform=transforms.Compose([Normalizer(), Resizer()]))
 
     # Create the model
     if parser.depth == 50:
@@ -55,6 +54,8 @@ def main(args=None):
     if use_gpu:
         if torch.cuda.is_available():
             retinanet = retinanet.cuda()
+        elif torch.backends.mps.is_available():
+            retinanet = retinanet.to(torch.device("mps"))
 
     retinanet.eval()
     retinanet.training = False
@@ -63,6 +64,7 @@ def main(args=None):
 
     eval = Evaluation()
     eval.evaluate(dataset_test, retinanet, threshold=parser.threshold)
+
 
 if __name__ == '__main__':
     main()
