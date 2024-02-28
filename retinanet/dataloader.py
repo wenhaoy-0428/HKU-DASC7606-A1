@@ -44,8 +44,8 @@ class CocoDataset(Dataset):
         categories = self.coco.loadCats(self.coco.getCatIds())
         categories.sort(key=lambda x: x['id'])
 
-        self.classes             = {}
-        self.coco_labels         = {}
+        self.classes = {}
+        self.coco_labels = {}
         self.coco_labels_inverse = {}
         for c in categories:
             self.coco_labels[len(self.classes)] = c['id']
@@ -72,9 +72,8 @@ class CocoDataset(Dataset):
 
     def load_image(self, image_index):
         image_info = self.coco.loadImgs(self.image_ids[image_index])[0]
-        path       = os.path.join(self.root_dir, 'images', self.set_name, image_info['file_name'])
+        path = os.path.join(self.root_dir, 'images', self.set_name, image_info['file_name'])
         img = skimage.io.imread(path)
-
         if len(img.shape) == 2:
             img = skimage.color.gray2rgb(img)
 
@@ -83,7 +82,7 @@ class CocoDataset(Dataset):
     def load_annotations(self, image_index):
         # get ground truth annotations
         annotations_ids = self.coco.getAnnIds(imgIds=self.image_ids[image_index], iscrowd=False)
-        annotations     = np.zeros((0, 5))
+        annotations = np.zeros((0, 5))
         # print(annotations_ids)
         # some images appear to miss annotations (like image with id 257034)
         if len(annotations_ids) == 0:
@@ -97,26 +96,25 @@ class CocoDataset(Dataset):
             if a['bbox'][2] < 1 or a['bbox'][3] < 1:
                 continue
 
-            annotation        = np.zeros((1, 5))
+            annotation = np.zeros((1, 5))
             annotation[0, :4] = a['bbox']
-            annotation[0, 4]  = self.coco_label_to_label(a['category_id'])
-            annotations       = np.append(annotations, annotation, axis=0)
+            annotation[0, 4] = self.coco_label_to_label(a['category_id'])
+
+            annotations = np.append(annotations, annotation, axis=0)
 
         ##################################################################
         # TODO: Please substitute the "?" to transform annotations
         #       from [x, y, w, h] to [x1, y1, x2, y2]
         ##################################################################
-            
-        annotations[:, 2] = "?"
-        annotations[:, 3] = "?"
 
+        annotations[:, 2] = annotations[:, 2] + annotations[:, 0]
+        annotations[:, 3] = annotations[:, 3] + annotations[:, 1]
         ##################################################################
-        
+
         return annotations
 
     def coco_label_to_label(self, coco_label):
         return self.coco_labels_inverse[coco_label]
-
 
     def label_to_coco_label(self, label):
         return self.coco_labels[label]
@@ -130,13 +128,12 @@ class CocoDataset(Dataset):
         return len(self.coco.getCatIds())
 
 
-
 def collater(data):
 
     imgs = [s['img'] for s in data]
     annots = [s['annot'] for s in data]
     scales = [s['scale'] for s in data]
-        
+
     widths = [int(s.shape[0]) for s in imgs]
     heights = [int(s.shape[1]) for s in imgs]
     batch_size = len(imgs)
@@ -150,20 +147,20 @@ def collater(data):
         img = imgs[i]
         padded_imgs[i, :int(img.shape[0]), :int(img.shape[1]), :] = img
 
+    # find the image in the batch that has the most annotations.
     max_num_annots = max(annot.shape[0] for annot in annots)
-    
+
     if max_num_annots > 0:
 
         annot_padded = torch.ones((len(annots), max_num_annots, 5)) * -1
 
         if max_num_annots > 0:
             for idx, annot in enumerate(annots):
-                #print(annot.shape)
+                # print(annot.shape)
                 if annot.shape[0] > 0:
                     annot_padded[idx, :annot.shape[0], :] = annot
     else:
         annot_padded = torch.ones((len(annots), 1, 5)) * -1
-
 
     padded_imgs = padded_imgs.permute(0, 3, 1, 2)
 
@@ -194,8 +191,8 @@ class Resizer(object):
         image = skimage.transform.resize(image, (int(round(rows*scale)), int(round((cols*scale)))))
         rows, cols, cns = image.shape
 
-        pad_w = 32 - rows%32
-        pad_h = 32 - cols%32
+        pad_w = 32 - rows % 32
+        pad_h = 32 - cols % 32
 
         new_image = np.zeros((rows + pad_w, cols + pad_h, cns)).astype(np.float32)
         new_image[:rows, :cols, :] = image.astype(np.float32)
@@ -218,7 +215,7 @@ class Augmenter(object):
 
             x1 = annots[:, 0].copy()
             x2 = annots[:, 2].copy()
-            
+
             x_tmp = x1.copy()
 
             annots[:, 0] = cols - x2
@@ -247,7 +244,7 @@ class Normalizer(object):
 
         ##################################################################
 
-        return {'img':(image), 'annot': annots}
+        return {'img': (image), 'annot': annots}
 
 
 class UnNormalizer(object):

@@ -17,6 +17,7 @@ model_urls = {
     'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
 }
 
+
 class ResNet(nn.Module):
 
     def __init__(self, num_classes, block, layers):
@@ -31,6 +32,7 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
 
+        # Get the final size of feature map after each block as the fpn_size.
         if block == BasicBlock:
             fpn_sizes = [self.layer2[layers[1] - 1].conv2.out_channels, self.layer3[layers[2] - 1].conv2.out_channels,
                          self.layer4[layers[3] - 1].conv2.out_channels]
@@ -55,7 +57,7 @@ class ResNet(nn.Module):
         # TODO: Please substitute the "?" to declare Focal Loss
         ##################################################################
 
-        self.focalLoss = "?"
+        self.focalLoss = losses.FocalLoss()
 
         ##################################################################
 
@@ -63,15 +65,32 @@ class ResNet(nn.Module):
 
         self.freeze_bn()
 
-
     def _make_layer(self, block, planes, blocks, stride=1):
+        """_summary_
+
+        Args:
+            block (_type_): BottleNeck Layer
+            planes (_type_): num of output channels
+            blocks (_type_): number of BottleNeck Layer
+            stride (int, optional): _description_. Defaults to 1.
+
+        Returns:
+            _type_: _description_
+        """
         ####################################################################
         # TODO: Please complete the downsample module
         # Hint: Use a "kernel_size=1"'s convolution layer to align the dimension
         #####################################################################
+
+        # ResNet uses residual where the input will be directly added to the output,
+        # Therefore, need to transform the input into the size of the output.
         downsample = nn.Sequential()
         if stride != 1 or self.inplanes != planes * block.expansion:
-            pass
+            downsample = nn.Sequential(
+                nn.Conv2d(self.inplanes, planes * block.expansion,
+                          kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm2d(planes * block.expansion),
+            )
 
         ##################################################################
 
@@ -81,7 +100,7 @@ class ResNet(nn.Module):
             layers.append(block(self.inplanes, planes))
 
         return nn.Sequential(*layers)
-    
+
     def model_init(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -110,8 +129,7 @@ class ResNet(nn.Module):
             img_batch, annotations = inputs
         else:
             img_batch = inputs
-
-        ### Backbone
+        # Backbone
         x = self.conv1(img_batch)
         x = self.bn1(x)
         x = self.relu(x)
@@ -121,15 +139,15 @@ class ResNet(nn.Module):
         x2 = self.layer2(x1)
         x3 = self.layer3(x2)
         x4 = self.layer4(x3)
-        
-        ### Neck
+
+        # Neck
         features = self.fpn([x2, x3, x4])
 
-        ### Head
+        # Head
         regression = torch.cat([self.regressionModel(feature) for feature in features], dim=1)
         classification = torch.cat([self.classificationModel(feature) for feature in features], dim=1)
 
-        ### Loss Computation / Inference
+        # Loss Computation / Inference
         anchors = self.anchors(img_batch)
         if self.training:
             return self.forward_train(classification, regression, anchors, annotations)
@@ -201,6 +219,3 @@ def resnet101(num_classes, pretrained=False, **kwargs):
     if pretrained:
         model.load_state_dict(model_zoo.load_url(model_urls['resnet101'], model_dir='.'), strict=False)
     return model
-
-
-

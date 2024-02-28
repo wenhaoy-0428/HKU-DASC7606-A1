@@ -12,8 +12,8 @@ from retinanet import model
 from retinanet.dataloader import CocoDataset, collater, Resizer, \
     AspectRatioBasedSampler, Augmenter, Normalizer
 from retinanet.eval import Evaluation
-    
 from torch.utils.data import DataLoader
+
 
 def main(args=None):
     parser = argparse.ArgumentParser(description='Simple training script for training a RetinaNet network.')
@@ -24,7 +24,6 @@ def main(args=None):
 
     parser = parser.parse_args(args)
 
-
     if not os.path.exists(parser.output_path):
         os.mkdir(parser.output_path)
 
@@ -34,7 +33,7 @@ def main(args=None):
     dataset_train = CocoDataset(parser.coco_path, set_name='train',
                                 transform=transforms.Compose([Normalizer(), Augmenter(), Resizer()]))
     dataset_val = CocoDataset(parser.coco_path, set_name='val',
-                                transform=transforms.Compose([Normalizer(), Resizer()]))
+                              transform=transforms.Compose([Normalizer(), Resizer()]))
 
     sampler = AspectRatioBasedSampler(dataset_train, batch_size=2, drop_last=False)
     dataloader_train = DataLoader(dataset_train, num_workers=2, collate_fn=collater, batch_sampler=sampler)
@@ -63,7 +62,7 @@ def main(args=None):
 
     print('Num training images: {}'.format(len(dataset_train)))
     for epoch_num in range(parser.epochs):
-        
+
         retinanet.training = True
         retinanet.train()
         retinanet.freeze_bn()
@@ -71,11 +70,11 @@ def main(args=None):
         epoch_loss = []
 
         for iter_num, data in tqdm(enumerate(dataloader_train)):
-            
+
             ###################################################################
             # TODO: Please fill the codes here to zero optimizer gradients
             ##################################################################
-            pass
+            optimizer.zero_grad()
 
             ##################################################################
 
@@ -83,10 +82,10 @@ def main(args=None):
                 classification_loss, regression_loss = retinanet([data['img'].cuda().float(), data['annot'].cuda()])
             else:
                 classification_loss, regression_loss = retinanet([data['img'].float(), data['annot']])
-                
+
             classification_loss = classification_loss.mean()
             regression_loss = regression_loss.mean()
-            
+
             loss = classification_loss + regression_loss
 
             if bool(loss == 0):
@@ -95,7 +94,7 @@ def main(args=None):
             ###################################################################
             # TODO: Please fill the codes here to complete the gradient backward
             ##################################################################
-            pass
+            loss.backward()
 
             ##################################################################
 
@@ -104,7 +103,7 @@ def main(args=None):
             ###################################################################
             # TODO: Please fill the codes here to optimize parameters
             ##################################################################
-            pass
+            optimizer.step()
 
             ##################################################################
 

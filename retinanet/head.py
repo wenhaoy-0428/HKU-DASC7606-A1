@@ -2,6 +2,7 @@ import torch.nn as nn
 import torch
 from retinanet.utils import conv1x1, conv3x3
 
+
 class RegressionHead(nn.Module):
     def __init__(self, num_features_in, num_anchors=9, feature_size=256):
         super(RegressionHead, self).__init__()
@@ -35,9 +36,9 @@ class RegressionHead(nn.Module):
 
         out = self.output(out)
 
-        # out is B x C x W x H, with C = 4*num_anchors
+        # out is B x C x W x H, with C = 4*num_anchors, B for batch
         out = out.permute(0, 2, 3, 1)
-
+        # The final shape is B x ? x 4 where ? is automatically determined
         return out.contiguous().view(out.shape[0], -1, 4)
 
 

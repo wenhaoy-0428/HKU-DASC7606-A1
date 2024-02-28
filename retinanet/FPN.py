@@ -1,6 +1,7 @@
 import torch.nn as nn
 from retinanet.utils import conv1x1, conv3x3
 
+
 class PyramidFeatureNetwork(nn.Module):
     def __init__(self, C3_size, C4_size, C5_size, feature_size=256):
         super(PyramidFeatureNetwork, self).__init__()
@@ -10,24 +11,24 @@ class PyramidFeatureNetwork(nn.Module):
         ##################################################################
         # upsample C5 to get P5 from the FPN paper
         self.P5_1 = conv1x1(C5_size, feature_size)
-        self.P5_upsampled = nn.Upsample(scale_factor="?", mode='nearest')
-        self.P5_2 = conv3x3(feature_size, feature_size, stride="?")
+        self.P5_upsampled = nn.Upsample(scale_factor=2, mode='nearest')
+        self.P5_2 = conv3x3(feature_size, feature_size, stride=1)
 
         # add P5 elementwise to C4
         self.P4_1 = conv1x1(C4_size, feature_size)
-        self.P4_upsampled = nn.Upsample(scale_factor="?", mode='nearest')
-        self.P4_2 = conv3x3(feature_size, feature_size, stride="?")
+        self.P4_upsampled = nn.Upsample(scale_factor=2, mode='nearest')
+        self.P4_2 = conv3x3(feature_size, feature_size, stride=1)
 
         # add P4 elementwise to C3
         self.P3_1 = conv1x1(C3_size, feature_size)
-        self.P3_2 = conv3x3(feature_size, feature_size, stride="?")
+        self.P3_2 = conv3x3(feature_size, feature_size, stride=1)
 
         # "P6 is obtained via a 3x3 stride-2 conv on C5"
-        self.P6 = conv3x3(C5_size, feature_size, stride="?")
+        self.P6 = conv3x3(C5_size, feature_size, stride=2)
 
         # "P7 is computed by applying ReLU followed by a 3x3 stride-2 conv on P6"
         self.P7_1 = nn.ReLU()
-        self.P7_2 = conv3x3(feature_size, feature_size, stride="?")
+        self.P7_2 = conv3x3(feature_size, feature_size, stride=2)
 
         ##################################################################
 
