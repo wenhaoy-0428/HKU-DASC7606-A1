@@ -14,6 +14,11 @@ from retinanet.dataloader import CocoDataset, collater, Resizer, \
 from retinanet.eval import Evaluation
 from torch.utils.data import DataLoader
 
+import hyper_param as HYPER_PARAM
+
+from torch.utils.tensorboard import SummaryWriter
+import shutil
+
 
 def main(args=None):
     parser = argparse.ArgumentParser(description='Simple training script for training a RetinaNet network.')
@@ -23,9 +28,12 @@ def main(args=None):
     parser.add_argument('--epochs', help='Number of epochs', type=int, default=72)
 
     parser = parser.parse_args(args)
-
+    parser.output_path = "./output_lr{}_d{}_e{}_b{}".format(str(HYPER_PARAM.learning_rate).replace('-', '_'), parser.depth, parser.epochs, HYPER_PARAM.batch_size)
+    print(parser.output_path)
     if not os.path.exists(parser.output_path):
         os.mkdir(parser.output_path)
+
+    shutil.copy("./hyper_param.py", parser.output_path)
 
     if parser.coco_path is None:
         raise ValueError('Must provide --coco_path when training on COCO.')
@@ -35,7 +43,7 @@ def main(args=None):
     dataset_val = CocoDataset(parser.coco_path, set_name='val',
                               transform=transforms.Compose([Normalizer(), Resizer()]))
 
-    sampler = AspectRatioBasedSampler(dataset_train, batch_size=2, drop_last=False)
+    sampler = AspectRatioBasedSampler(dataset_train, batch_size=HYPER_PARAM.batch_size, drop_last=False)
     dataloader_train = DataLoader(dataset_train, num_workers=2, collate_fn=collater, batch_sampler=sampler)
 
     # Create the model
@@ -56,13 +64,15 @@ def main(args=None):
             retinanet = retinanet.to(mps_device)
 
     retinanet.training = True
-    optimizer = optim.Adam(retinanet.parameters(), lr=1e-4)
+    optimizer = optim.Adam(retinanet.parameters(), lr=HYPER_PARAM.learning_rate)
 
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[48, 64])
 
     loss_hist = collections.deque(maxlen=500)
     epoch_loss_list = []
 
+
+    writer = SummaryWriter(log_dir='./tb')
     print('Num training images: {}'.format(len(dataset_train)))
     for epoch_num in range(parser.epochs):
 
@@ -122,15 +132,21 @@ def main(args=None):
                 print(
                     'Epoch: {} | Iteration: {} | Classification loss: {:1.5f} | Regression loss: {:1.5f} | Running loss: {:1.5f}'.format(
                         epoch_num, iter_num, float(classification_loss), float(regression_loss), np.mean(loss_hist)))
+            
+
+            writer.add_scalar( f'Epoch {epoch_num} Classification loss/train',float(classification_loss),iter_num)
+            writer.add_scalar( f'Epoch {epoch_num} Regression loss/train',float(regression_loss),iter_num)
+            writer.add_scalar( f'Epoch {epoch_num} Running loss/train',np.mean(loss_hist),iter_num)
 
             del classification_loss
             del regression_loss
 
         scheduler.step()
+        writer.add_scalar('Running loss per Epoch/train',np.mean(epoch_loss),epoch_num)
 
         epoch_loss_list.append(np.mean(epoch_loss))
 
-        if (epoch_num + 1) % 10 == 0 or epoch_num + 1 == parser.epochs:
+        if (epoch_num + 1) % HYPER_PARAM.save_per_epoch == 0 or epoch_num + 1 == parser.epochs:
             print('Evaluating dataset')
             retinanet.eval()
             retinanet.training = False
@@ -141,6 +157,8 @@ def main(args=None):
 
     print(epoch_loss_list)
     torch.save(retinanet, os.path.join(parser.output_path, 'model_final.pt'))
+    writer.flush()
+    writer.close()
 
 
 if __name__ == '__main__':

@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+import hyper_param as HYPER_PARAM
 
 def calc_iou(a, b):
     """Intersection over Union
@@ -55,8 +56,8 @@ class FocalLoss(nn.Module):
         Returns:
             _type_: _description_
         """
-        alpha = 0.25
-        gamma = 2.0
+        alpha = HYPER_PARAM.focal_loss_alpha
+        gamma = HYPER_PARAM.focal_loss_gamma
         batch_size = classifications.shape[0]
         classification_losses = []
         regression_losses = []
