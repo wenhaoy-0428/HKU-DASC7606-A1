@@ -240,7 +240,7 @@ class Normalizer(object):
         # TODO: Please modify and fill the codes here to complete the image normalization
         ##################################################################
         image = image.astype(np.float32)
-        pass
+        image = (image.astype(np.float32)-self.mean)/self.std
 
         ##################################################################
 

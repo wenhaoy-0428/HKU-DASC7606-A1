@@ -197,6 +197,8 @@ class ResNet(nn.Module):
             finalAnchorBoxesIndexesValue = torch.tensor([i] * anchors_nms_idx.shape[0])
             if torch.cuda.is_available():
                 finalAnchorBoxesIndexesValue = finalAnchorBoxesIndexesValue.cuda()
+            elif torch.backends.mps.is_available():
+                finalAnchorBoxesIndexesValue = finalAnchorBoxesIndexesValue.to(torch.device("mps"))
 
             finalAnchorBoxesIndexes = torch.cat((finalAnchorBoxesIndexes, finalAnchorBoxesIndexesValue))
             finalAnchorBoxesCoordinates = torch.cat((finalAnchorBoxesCoordinates, anchorBoxes[anchors_nms_idx]))
